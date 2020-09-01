@@ -47,10 +47,12 @@
 
 // ModbusCtx structure
 typedef struct ModbusCtx {
-    int devId;
-    int baud;
-    int header_length;
-    int checksum_length;
+    int     devId;
+    int     baud;
+    uint8_t parity;
+    uint8_t stop;
+    int     header_length;
+    int     checksum_length;
 }ModbusCtx;
 
 static uint16_t 
@@ -175,13 +177,15 @@ ModbusDevRTU_ReadRegister(ModbusCtx* me, int regAddr, int function, unsigned sho
 
 // Initialization and cleanup
 ModbusCtx* 
-ModbusDevRTU_Initialize(int devId, int baud) {
+ModbusDevRTU_Initialize(int devId, int baud, uint8_t parity, uint8_t stop) {
     ModbusCtx* newObj;
 
     newObj = (ModbusCtx*)malloc(sizeof(ModbusCtx));
 
     newObj->devId = devId;
     newObj->baud = baud;
+    newObj->parity = parity;
+    newObj->stop = stop;
 
     newObj->header_length = MODBUS_RTU_HEADER_LENGTH;
     newObj->checksum_length = MODBUS_RTU_CHECKSUM_LENGTH;

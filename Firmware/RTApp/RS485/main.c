@@ -59,6 +59,12 @@ typedef unsigned int u32;
 #define UART_FRACDIV_L			(0x54)
 #define UART_FRACDIV_M			(0x58)
 #define UART_LCR_DLAB			(1 << 7)
+#define UART_LCR_SB      		(1 << 6)
+#define UART_LCR_SP 	    	(1 << 5)
+#define UART_LCR_EPS_SHIFT		(4)
+#define UART_LCR_PEN    		(1 << 3)
+#define UART_LCR_STB_SHIFT		(2)
+#define UART_LCR_WLS_SHIFT		(0)
 
 #define RX_BUFFER_SIZE 8
 
@@ -86,7 +92,7 @@ void Uart_Init(void)
 }
 
 static
-void mtk_hdl_uart_set_baudrate(u32 baudrate)
+void mtk_hdl_uart_set_params(u32 baudrate, u8 parity, u8 stop)
 {
     u8 uart_lcr, fraction;
     u32 data, high_speed_div, sample_count, sample_point;
@@ -101,6 +107,15 @@ void mtk_hdl_uart_set_baudrate(u32 baudrate)
 
     /* High speed mode */
     WriteReg32(UART_BASE, UART_RATE_STEP, 0x03);
+
+    /* Set parity and stop bit */
+    uart_lcr = ReadReg32(UART_BASE, UART_LCR);
+    uart_lcr = uart_lcr | ((stop - 1) << UART_LCR_STB_SHIFT);
+    if(parity) {
+        uart_lcr = uart_lcr | ((parity -1 ) << UART_LCR_EPS_SHIFT)
+                | UART_LCR_PEN | UART_LCR_SP;
+    }
+    WriteReg32(UART_BASE, UART_LCR, uart_lcr);
 
     /* DLAB start */
     uart_lcr = ReadReg32(UART_BASE, UART_LCR);
@@ -318,7 +333,8 @@ RTCoreMain(void)
                 // status code is
                 //   0: error, 1: OK
                 Uart_Init();
-                mtk_hdl_uart_set_baudrate(msg->body.setParams.baudRate);
+                mtk_hdl_uart_set_params(msg->body.setParams.baudRate,
+                    msg->body.setParams.parity, msg->body.setParams.stop);
                 initializeUart = true;
                 if (! InterCoreComm_SendIntValue(1)) {
 //                    int i = 0;

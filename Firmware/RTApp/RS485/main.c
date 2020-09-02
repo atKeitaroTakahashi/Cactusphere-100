@@ -109,13 +109,13 @@ void mtk_hdl_uart_set_params(u32 baudrate, u8 parity, u8 stop)
     WriteReg32(UART_BASE, UART_RATE_STEP, 0x03);
 
     /* Set parity and stop bit */
-    uart_lcr = ReadReg32(UART_BASE, UART_LCR);
-    uart_lcr = uart_lcr | ((stop - 1) << UART_LCR_STB_SHIFT);
-    if(parity) {
-        uart_lcr = uart_lcr | ((parity -1 ) << UART_LCR_EPS_SHIFT)
-                | UART_LCR_PEN | UART_LCR_SP;
-    }
-    WriteReg32(UART_BASE, UART_LCR, uart_lcr);
+    // uart_lcr = ReadReg32(UART_BASE, UART_LCR);
+    // uart_lcr = uart_lcr | ((stop - 1) << UART_LCR_STB_SHIFT);
+    // if(parity) {
+    //     uart_lcr = uart_lcr | ((parity -1 ) << UART_LCR_EPS_SHIFT)
+    //             | UART_LCR_PEN | UART_LCR_SP;
+    // }
+    // WriteReg32(UART_BASE, UART_LCR, uart_lcr);
 
     /* DLAB start */
     uart_lcr = ReadReg32(UART_BASE, UART_LCR);

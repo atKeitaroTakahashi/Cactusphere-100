@@ -94,7 +94,7 @@ void Uart_Init(void)
 static
 void mtk_hdl_uart_set_params(u32 baudrate, u8 parity, u8 stop)
 {
-    u8 uart_lcr, fraction;
+    u8 uart_lcr, fraction, word_length;
     u32 data, high_speed_div, sample_count, sample_point;
     u8 fraction_L_mapping[] = { 0x00, 0x10, 0x44, 0x92, 0x59,
             0xab, 0xb7, 0xdf, 0xff, 0xff, 0xff };
@@ -109,13 +109,16 @@ void mtk_hdl_uart_set_params(u32 baudrate, u8 parity, u8 stop)
     WriteReg32(UART_BASE, UART_RATE_STEP, 0x03);
 
     /* Set parity and stop bit */
-    // uart_lcr = ReadReg32(UART_BASE, UART_LCR);
-    // uart_lcr = uart_lcr | ((stop - 1) << UART_LCR_STB_SHIFT);
-    // if(parity) {
-    //     uart_lcr = uart_lcr | ((parity -1 ) << UART_LCR_EPS_SHIFT)
-    //             | UART_LCR_PEN | UART_LCR_SP;
-    // }
-    // WriteReg32(UART_BASE, UART_LCR, uart_lcr);
+    uart_lcr = ReadReg32(UART_BASE, UART_LCR);
+    word_length = stop - 1;
+    if(parity) {
+        uart_lcr = uart_lcr | ((parity -1 ) << UART_LCR_EPS_SHIFT)
+                    | UART_LCR_PEN | UART_LCR_SP;
+        word_length += 1;
+    }
+    uart_lcr = uart_lcr | ((stop - 1) << UART_LCR_STB_SHIFT)
+                | word_length << UART_LCR_WLS_SHIFT;
+    WriteReg32(UART_BASE, UART_LCR, uart_lcr);
 
     /* DLAB start */
     uart_lcr = ReadReg32(UART_BASE, UART_LCR);

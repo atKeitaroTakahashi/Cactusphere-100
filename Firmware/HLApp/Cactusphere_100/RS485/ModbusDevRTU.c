@@ -209,6 +209,8 @@ ModbusDevRTU_Connect(ModbusCtx* me) {
     msg->header.requestCode = UART_REQ_SET_PARAMS;
     msg->header.messageLen = sizeof(UART_MsgSetParams);
     msg->body.setParams.baudRate = (uint32_t)me->baud;
+    msg->body.setParams.parity = (uint8_t)me->parity;
+    msg->body.setParams.stop = (uint8_t)me->stop;
     msgSize = (int)(sizeof(msg->header) + msg->header.messageLen);
 
     SendRTApp_SendMessageToRTCoreAndReadMessage((const unsigned char*)msg, (long)msgSize, &readMessage, sizeof(readMessage));

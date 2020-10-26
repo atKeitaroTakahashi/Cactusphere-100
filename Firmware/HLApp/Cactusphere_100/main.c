@@ -258,6 +258,28 @@ int main(int argc, char *argv[])
         Log_Debug("ScopeId needs to be set in the app_manifest CmdArgs\n");
         return -1;
     }
+
+    Log_Debug("Getting EEPROM information.\n");
+    err = GetEepromProperty(&eeprom);
+    if (err < 0) {
+        ct_error = -EEPROM_READ_ERROR;
+        gLedState = LED_BLINK;
+        // cactusphere_error_notify(EEPROM_READ_ERROR);
+        // exitCode = ExitCode_TermHandler_SigTerm;
+    }
+    static Networking_Interface_HardwareAddress ha, check;
+    Networking_GetHardwareAddress("eth0", check.address);
+    Log_Debug("%02x:%02x:%02x:%02x:%02x:%02x\n", check.address[0], check.address[1],
+     check.address[2], check.address[3], check.address[4], check.address[5]);
+    for (int i = 0; i < HARDWARE_ADDRESS_LENGTH; i++) {
+        ha.address[i] = eeprom.ethernetMac[HARDWARE_ADDRESS_LENGTH - (i + 1)];
+    }
+    Networking_SetHardwareAddress("eth0", ha.address, HARDWARE_ADDRESS_LENGTH);
+    Networking_GetHardwareAddress("eth0", check.address);
+    Log_Debug("%02x:%02x:%02x:%02x:%02x:%02x\n", check.address[0], check.address[1],
+     check.address[2], check.address[3], check.address[4], check.address[5]);
+
+
     err = Networking_SetInterfaceState("eth0", true);
     if (err < 0) {
         Log_Debug("Error setting interface state (eth0) %d\n", errno);
@@ -490,6 +512,8 @@ static void HubConnectionStatusCallback(IOTHUB_CLIENT_CONNECTION_STATUS result,
         } else {
             static const char* EventMsgTemplate = "{ \"%s\": \"%s\" }";
             static char propertyStr[280] = { 0 };
+            static Networking_Interface_HardwareAddress ha, check;
+            static char tmp[2] = { 0 };          // Hardware address byte
 
             // Send App version
             // HLApp
@@ -521,6 +545,12 @@ static void HubConnectionStatusCallback(IOTHUB_CLIENT_CONNECTION_STATUS result,
 
             setEepromString(eepromProperty[0].value, eeprom.serial, sizeof(eeprom.serial));
             setEepromString(eepromProperty[1].value, eeprom.ethernetMac, sizeof(eeprom.ethernetMac));
+            for (int i = 0; i < HARDWARE_ADDRESS_LENGTH; i++) {
+                strncpy(tmp, eepromProperty[1].value + (i * 2), 2);
+                ha.address[i] = strtoul(tmp, NULL, 16);
+            }
+            Networking_SetHardwareAddress("eth0", ha.address, HARDWARE_ADDRESS_LENGTH);
+            Networking_GetHardwareAddress("eth0", check.address);
             setEepromString(eepromProperty[2].value, eeprom.productId, sizeof(eeprom.productId));
             setEepromString(eepromProperty[3].value, eeprom.venderId, sizeof(eeprom.venderId));
             setEepromString(eepromProperty[4].value, eeprom.wlanMac, sizeof(eeprom.wlanMac));

@@ -1,0 +1,12 @@
+{
+  "SchemaVersion": 1,
+  "Name": "DIO_RTApp_Cactusphere_100",
+  "ComponentId": "fe77a0a0-531f-10f1-1759-28c40ed592a8",
+  "EntryPoint": "/bin/app",
+  "Capabilities": {
+    "Gpio": [ 12, 15 ],
+    "Pwm": [ "PWM-CONTROLLER-0", "PWM-CONTROLLER-2" ],
+    "AllowedApplicationConnections": [ "0623bac2-dc05-ba31-2abb-ac4f805d6464" ]
+  },
+  "ApplicationType": "RealTimeCapable"
+}

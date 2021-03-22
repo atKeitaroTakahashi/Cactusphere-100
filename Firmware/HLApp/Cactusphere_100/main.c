@@ -127,11 +127,17 @@ static volatile sig_atomic_t exitCode = ExitCode_Success;
 #define USE_MODBUS
 #endif // PRODUCT_ATMARK_TECHNO_RS485
 
+#if (APP_PRODUCT_ID == PRODUCT_ATMARK_TECHNO_DIO)
+#define USE_DIO
+#define DIO_PORT_OFFSET 1
+#endif // PRODUCT_ATMARK_TECHNO_DIO
+
 #ifdef USE_MODBUS
 #include "ModbusConfigMgr.h"
 #include "ModbusFetchConfig.h"
 #include "LibModbus.h"
 #include "ModbusDataFetchScheduler.h"
+#define GPIO_USERLED MT3620_GPIO8
 #endif  // USE_MODBUS
 
 #ifdef USE_MODBUS_TCP
@@ -145,7 +151,21 @@ static volatile sig_atomic_t exitCode = ExitCode_Success;
 #include "DI_FetchConfig.h"
 #include "DI_WatchConfig.h"
 #include "LibDI.h"
+#define GPIO_USERLED MT3620_GPIO8
 #endif  // USE_DI
+
+#ifdef USE_DIO
+#include "DIO_ConfigMgr.h"
+#include "DIO_DataFetchScheduler.h"
+#include "DIO_FetchConfig.h"
+#include "DIO_WatchConfig.h"
+#include "LibDIO.h"
+#define GPIO_USERLED MT3620_GPIO23
+typedef enum {
+    DOControl_Start = 0,
+    DOControl_Stop,
+} DOControlMode;
+#endif  // USE_DIO
 
 static int ct_error = 0;
 
@@ -238,7 +258,7 @@ static const int AzureIoTMaxReconnectPeriodSeconds = 10 * 60;
 
 static int azureIoTPollPeriodSeconds = -1;
 
-#define MAX_SCHEDULER_NUM   3
+#define MAX_SCHEDULER_NUM   4
 static DataFetchScheduler* mTelemetrySchedulerArr[MAX_SCHEDULER_NUM] = { NULL };
 
 static void AzureTimerEventHandler(EventLoopTimer *timer);
@@ -327,6 +347,10 @@ int main(int argc, char *argv[])
     mTelemetrySchedulerArr[DIGITAL_IN] = Factory_CreateScheduler(DIGITAL_IN);
     DI_ConfigMgr_Initialize();
 #endif  // USE_DI
+#ifdef USE_DIO
+    mTelemetrySchedulerArr[DIO] = Factory_CreateScheduler(DIO);
+    DIO_ConfigMgr_Initialize();
+#endif  // USE_DIO
 
     TelemetryItems_InitDictionary();
     SendRTApp_InitHandlers();
@@ -382,6 +406,10 @@ int main(int argc, char *argv[])
 #ifdef USE_DI
     DI_ConfigMgr_Cleanup();
 #endif  // USE_DI
+
+#ifdef USE_DIO
+    DIO_ConfigMgr_Cleanup();
+#endif  // USE_DIO
 
     for (int i = 0; i < MAX_SCHEDULER_NUM; i++) {
         DataFetchScheduler* scheduler = mTelemetrySchedulerArr[i];
@@ -818,7 +846,7 @@ static ExitCode InitPeripheralsAndHandlers(void)
     // LED
 	Log_Debug("Opening MT3620_GPIO8 as output\n");
 	ledGpioFd =
-		GPIO_OpenAsOutput(MT3620_GPIO8, GPIO_OutputMode_PushPull, GPIO_Value_High);
+		GPIO_OpenAsOutput(GPIO_USERLED, GPIO_OutputMode_PushPull, GPIO_Value_High);
 	if (ledGpioFd < 0) {
 		Log_Debug("ERROR: Could not open LED: %s (%d).\n", strerror(errno), errno);
 		return ExitCode_TermHandler_SigTerm;
@@ -900,6 +928,8 @@ static void HubConnectionStatusCallback(IOTHUB_CLIENT_CONNECTION_STATUS result,
             ret = DI_Lib_ReadRTAppVersion(rtAppVersion);
 #elif defined USE_MODBUS
             ret = Libmodbus_GetRTAppVersion(rtAppVersion);
+#elif defined USE_DIO
+            //ret = DIO_Lib_ReadRTAppVersion(rtAppVersion);
 #endif
             if (ret) {
                 snprintf(propertyStr, sizeof(propertyStr), EventMsgTemplate, "RTAppVersion", rtAppVersion);
@@ -1312,6 +1342,47 @@ static void TwinCallback(DEVICE_TWIN_UPDATE_STATE updateState, const unsigned ch
     }
 
 #endif  // USE_DI
+
+#ifdef USE_DIO
+    SphereWarning err = DIO_ConfigMgr_LoadAndApplyIfChanged(payload, payloadSize, Send_PropertyItem);
+    if (defupderr && err == UNSUPPORTED_PROPERTY) {
+        err = NO_ERROR;
+    }
+    switch (err)
+    {
+    case NO_ERROR:
+    case ILLEGAL_PROPERTY:
+        DIO_DataFetchScheduler_Init(
+            mTelemetrySchedulerArr[DIO],
+            DIO_FetchConfig_GetFetchItemPtrs(DIO_ConfigMgr_GetFetchConfig()),
+            DIO_WatchConfig_GetFetchItems(DIO_ConfigMgr_GetWatchConfig()));
+        SendPropertyResponse(Send_PropertyItem);
+
+        if (err == NO_ERROR) {
+            gLedState = LED_ON;
+        } else { // ILLEGAL_PROPERTY
+            // do not set ct_error and exitCode,
+            // as it won't hang with this error.
+            Log_Debug("ERROR: Receive illegal property.\n");
+            gLedState = LED_BLINK;
+            cactusphere_error_notify(err);
+        }
+        break;
+    case ILLEGAL_DESIRED_PROPERTY:
+        Log_Debug("ERROR: Receive illegal desired property.\n");
+        ct_error = -(int)err;
+        break;
+    case UNSUPPORTED_PROPERTY:
+        Log_Debug("ERROR: Receive unsupported property.\n");
+        ct_error = -(int)err;
+        break;
+
+    default:
+        break;
+    }
+
+#endif  // USE_DIO
+
     vector_destroy(Send_PropertyItem);
 
     if (ct_error < 0) {
@@ -1400,6 +1471,81 @@ err:
     IoT_CentralLib_SendProperty(reportedPropertiesString);
 
 #endif  // USE_DI
+
+#ifdef USE_DIO
+    const char ClearCounterDIKey[] = "ClearCounter_DI";
+    const size_t ClearCounterDiLen = strlen(ClearCounterDIKey);
+    const char ControlDOKey[] = "Control_DO";
+    const size_t ControlDOLen = strlen(ControlDOKey);
+
+    if (0 == strncmp(method_name, ClearCounterDIKey, ClearCounterDiLen)) {
+        int pinId = strtol(&method_name[ClearCounterDiLen], NULL, 10) - DIO_PORT_OFFSET;
+        if (pinId < 0) {
+            goto err;
+        }
+
+        if (0 != strncmp(payload, "null", strlen("null"))) {
+            char *cmdPayload = (char *)calloc(size + 1, sizeof(char));
+            if (NULL == cmdPayload) {
+                goto err;
+            }
+            strncpy(cmdPayload, payload, size);
+            uint64_t initVal = strtoull(cmdPayload, NULL, 10);
+
+            if (initVal > 0x7FFFFFFF) {
+                free(cmdPayload);
+                goto err_value;
+            }
+            if (!DIO_Lib_ResetPulseCount((unsigned long)pinId, (unsigned long)initVal)) {
+                Log_Debug("DIDO_Lib_ResetPulseCount() error");
+                strcpy(deviceMethodResponse, "\"Reset Error\"");
+            } else {
+                strcpy(deviceMethodResponse, "\"Success\"");
+            }
+
+            free(cmdPayload);
+        } else {
+err_value:
+            //init value error
+            strcpy(deviceMethodResponse, "\"Illegal init value\"");
+        }
+    } else if (0 == strncmp(method_name, ControlDOKey, ControlDOLen)) {
+        int pinId = strtol(&method_name[ControlDOLen], NULL, 10) - DIO_PORT_OFFSET;
+        if (pinId < 0) {
+            goto err;
+        }
+
+        if (0 != strncmp(payload, "null", strlen("null"))) {
+            char *cmdPayload = (char *)calloc(size + 1, sizeof(char));
+            if (NULL == cmdPayload) {
+                goto err;
+            }
+            strncpy(cmdPayload, payload, size);
+            DOControlMode mode = strtol(cmdPayload, NULL, 10);
+            if (mode != DOControl_Start && mode != DOControl_Stop) {
+                goto err_mode;
+            }
+            strcpy(deviceMethodResponse, "\"Success\"");
+
+            free(cmdPayload);
+        } else {
+err_mode:
+            //mode error
+            strcpy(deviceMethodResponse, "\"Illegal mode\"");
+        }
+    } else {
+err:
+        strcpy(deviceMethodResponse, "\"Error\"");
+    }
+
+    // send result
+    *response_size = strlen(deviceMethodResponse);
+    *response = malloc(*response_size);
+    if (NULL != response) {
+        (void)memcpy(*response, deviceMethodResponse, *response_size);
+    }
+
+#endif  // USE_DIO
 end:
     return 200;
 }

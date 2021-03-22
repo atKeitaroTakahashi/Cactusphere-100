@@ -35,6 +35,7 @@ typedef enum IO_Feature {
     MODBUS_RTU,  // Modbus RTU/RS-458
     MODBUS_TCP, // Modbus TCP/IP
     DIGITAL_IN,  // DIN (switch/contact input & pulse counter)
+    DIO,         // DIO model
 } IO_Feature;
 
 extern DataFetchSchedulerBase* Factory_CreateScheduler(IO_Feature feature);

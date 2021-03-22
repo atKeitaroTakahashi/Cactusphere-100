@@ -54,6 +54,16 @@ if(PRODUCT STREQUAL "atmarktechno_RS485_model")
     set(APP_VERSION "21.01-v1.0.1")
 endif()
 
+if(PRODUCT STREQUAL "atmarktechno_DIO_model")
+    add_compile_definitions(APP_PRODUCT_ID=0x06)
+    set(INCLUDE_DIR ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/drivers
+                    ${PROJECT_SOURCE_DIR}/common ${PROJECT_SOURCE_DIR}/DIO
+    )
+    file(GLOB DIO_SRC DIO/*.c)
+    set(SRC_LIST main.c ${DRIVERS_SRC} ${COMMON_SRC} ${DIO_SRC})
+    set(APP_VERSION "21.01-v1.0.0")
+endif()
+
 # App Version
 add_compile_definitions(HLAPP_VERSION="${APP_VERSION}")
 

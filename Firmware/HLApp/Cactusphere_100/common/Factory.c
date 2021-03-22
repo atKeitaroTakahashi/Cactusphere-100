@@ -34,6 +34,12 @@
 #include "ModbusDataFetchScheduler.h"
 #define USE_MODBUS
 #endif
+#if (APP_PRODUCT_ID == PRODUCT_ATMARK_TECHNO_DIO)
+#include "DIO_DataFetchScheduler.h"
+#include "DIO_FetchTimers.h"
+#define USE_DIO
+#endif
+
 
 DataFetchSchedulerBase*
 Factory_CreateScheduler(IO_Feature feature)
@@ -54,6 +60,11 @@ Factory_CreateScheduler(IO_Feature feature)
 #ifdef USE_DI
     case DIGITAL_IN:
         newObj = DI_DataFetchScheduler_New();
+        break;
+#endif
+#ifdef USE_DIO
+    case DIO:
+        newObj = DIO_DataFetchScheduler_New();
         break;
 #endif
     default:
@@ -84,6 +95,12 @@ Factory_CreateFetchTimers(IO_Feature feature,
     case DIGITAL_IN:
         newObj = FetchTimers_New(cbProc, cbArg);
         newObj->InitForTimer = DI_FetchTimers_InitForTimer;
+        break;
+#endif
+#ifdef USE_DIO
+    case DIO:
+        newObj = FetchTimers_New(cbProc, cbArg);
+        newObj->InitForTimer = DIO_FetchTimers_InitForTimer;
         break;
 #endif
     default:

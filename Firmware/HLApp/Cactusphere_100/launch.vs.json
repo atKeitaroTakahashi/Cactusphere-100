@@ -31,6 +31,21 @@
       "targetCore": "HLCore",
       "targetApiSet": "${env.AzureSphereTargetApiSet}",
       "partnerComponents": [ "c8b178fe-5942-4584-826c-51856ac5e4ff" ]
+    },
+    {
+      "type": "azurespheredbg",
+      "name": "GDB (AtmarkTechno_DIO)",
+      "project": "CMakeLists.txt",
+      "inheritEnvironments": [
+        "AzureSphere"
+      ],
+      "customLauncher": "AzureSphereLaunchOptions",
+      "workingDirectory": "${workspaceRoot}",
+      "applicationPath": "${debugInfo.target}",
+      "imagePath": "${debugInfo.targetImage}",
+      "targetCore": "HLCore",
+      "targetApiSet": "${env.AzureSphereTargetApiSet}",
+      "partnerComponents": [ "fe77a0a0-531f-10f1-1759-28c40ed592a8" ]
     }
   ]
 }

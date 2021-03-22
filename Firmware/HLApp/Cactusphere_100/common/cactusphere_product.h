@@ -32,3 +32,4 @@
 #define PRODUCT_ATMARK_TECHNO_AIN             (0x03)
 #define PRODUCT_ATMARK_TECHNO_AOUT            (0x04)
 #define PRODUCT_ATMARK_TECHNO_RS485           (0x05)
+#define PRODUCT_ATMARK_TECHNO_DIO             (0x06)

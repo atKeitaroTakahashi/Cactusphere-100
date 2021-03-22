@@ -77,10 +77,10 @@ void PropertyItems_AddItem(
     pseudo.value.b = false;
     pseudo.value.ul = 0x00;
     pseudo.value.str = NULL;
-    
+
     va_start(args, type);
     strncpy(pseudo.propertyName, itemName, PROPERTY_NAME_MAX_LEN);
-    
+
     switch (type)
     {
     case TYPE_BOOL:
@@ -93,9 +93,11 @@ void PropertyItems_AddItem(
         if ((value = va_arg(args, char *)) == NULL) {
             goto err;
         }
+
         if ((pseudo.value.str = PropertyItems_ReplaceString(value)) == NULL) {
             goto err;
         }
+
         break;
     case TYPE_NULL:
         break;

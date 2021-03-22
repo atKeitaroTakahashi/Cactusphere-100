@@ -42,6 +42,8 @@
 static const char rtAppComponentId[] = "c01e5fe8-6c61-4d14-beff-38492b1502b6";  // for DI
 #elif (APP_PRODUCT_ID == PRODUCT_ATMARK_TECHNO_RS485)
 static const char rtAppComponentId[] = "c8b178fe-5942-4584-826c-51856ac5e4ff";  // for RS485
+#elif (APP_PRODUCT_ID == PRODUCT_ATMARK_TECHNO_DIO)
+static const char rtAppComponentId[] = "fe77a0a0-531f-10f1-1759-28c40ed592a8";  // for DIDO
 #endif
 
 static int sSockFd = -1;
